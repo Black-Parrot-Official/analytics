@@ -1,180 +1,199 @@
-(function () {
-  let overlay;
+(function() {
+  // Create full screen overlay styles
+  const overlayStyles = `
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: white;
+    color: #222;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: sans-serif;
+    z-index: 9999999;
+    text-align: center;
+    padding: 20px;
+  `;
 
-  function createOverlay(msg) {
-    if (overlay) return;
+  // Sad face emoji for rain
+  const sadEmoji = '😞';
 
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes rainSadFaces {
-        0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
-        50% { opacity: 1; }
-        100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
-      }
-      #blocker-overlay {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100vw; height: 100vh;
-        background: #fff;
-        color: #222;
-        z-index: 99999999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        text-align: center;
-        padding: 2rem;
-        overflow: hidden;
-        user-select: none;
-      }
-      #blocker-overlay > div {
-        position: relative;
-        z-index: 10;
-        max-width: 90vw;
-      }
-      #blocker-overlay h2 {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-      }
-      #blocker-overlay p {
-        font-size: 1.2rem;
-        margin-bottom: 1.5rem;
-      }
-      #blocker-overlay button {
-        padding: 0.6rem 1.2rem;
-        font-size: 1.1rem;
-        cursor: pointer;
-        background: #222;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        transition: background-color 0.3s ease;
-      }
-      #blocker-overlay button:hover {
-        background: #555;
-      }
-      .sad-face-rain {
-        pointer-events: none;
-        position: fixed;
-        top: -5vh;
-        font-size: 2.5rem;
-        user-select: none;
-        animation-name: rainSadFaces;
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-      }
-    `;
-    document.head.appendChild(style);
+  // Create overlay elements
+  const overlay = document.createElement('div');
+  overlay.style.cssText = overlayStyles;
+  overlay.style.display = 'none';
 
-    overlay = document.createElement('div');
-    overlay.id = 'blocker-overlay';
+  // Message container
+  const message = document.createElement('div');
+  message.style.marginBottom = '30px';
+  message.style.fontSize = '1.4rem';
+  message.style.lineHeight = '1.5';
 
-    overlay.innerHTML = `
-      <div>
-        <h2>${msg}</h2>
-        <p>Please disable your ad blocker or switch to Chrome.</p>
-        <button id="refreshBtn">Retry</button>
-      </div>
-    `;
+  // Refresh button
+  const refreshBtn = document.createElement('button');
+  refreshBtn.textContent = 'Refresh';
+  refreshBtn.style.padding = '12px 24px';
+  refreshBtn.style.fontSize = '1.1rem';
+  refreshBtn.style.cursor = 'pointer';
+  refreshBtn.style.border = '2px solid #555';
+  refreshBtn.style.borderRadius = '6px';
+  refreshBtn.style.background = 'white';
+  refreshBtn.style.color = '#222';
+  refreshBtn.style.transition = 'background 0.3s, color 0.3s';
 
-    document.body.appendChild(overlay);
+  refreshBtn.onmouseenter = () => {
+    refreshBtn.style.background = '#222';
+    refreshBtn.style.color = 'white';
+  };
+  refreshBtn.onmouseleave = () => {
+    refreshBtn.style.background = 'white';
+    refreshBtn.style.color = '#222';
+  };
+  refreshBtn.onclick = () => location.reload();
 
-    // Create raining sad faces for ~5 seconds
-    const rainCount = 30;
-    for (let i = 0; i < rainCount; i++) {
+  // Rain container
+  const rainContainer = document.createElement('div');
+  rainContainer.style.position = 'fixed';
+  rainContainer.style.top = 0;
+  rainContainer.style.left = 0;
+  rainContainer.style.width = '100vw';
+  rainContainer.style.height = '100vh';
+  rainContainer.style.pointerEvents = 'none';
+  rainContainer.style.overflow = 'hidden';
+  rainContainer.style.zIndex = '10000000';
+
+  overlay.appendChild(message);
+  overlay.appendChild(refreshBtn);
+  document.body.appendChild(overlay);
+  document.body.appendChild(rainContainer);
+
+  // Detect Brave Browser
+  function isBrave() {
+    return new Promise(resolve => {
+      if (!navigator.brave) return resolve(false);
+      navigator.brave.isBrave().then(resolve).catch(() => resolve(false));
+    });
+  }
+
+  // Detect AdBlocker by loading Google Ads script
+  function detectAdBlocker() {
+    return new Promise(resolve => {
+      const baitScript = document.createElement('script');
+      baitScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+      baitScript.async = true;
+
+      let detected = false;
+
+      baitScript.onerror = () => {
+        detected = true;
+        resolve(true);
+      };
+      baitScript.onload = () => {
+        if (!detected) resolve(false);
+      };
+
+      document.head.appendChild(baitScript);
+
+      // Timeout in case script neither loads nor errors (rare)
+      setTimeout(() => {
+        if (!detected) resolve(false);
+      }, 3000);
+    });
+  }
+
+  // Sad face rain animation
+  function startSadFaceRain(duration = 5000) {
+    const emojis = [];
+    const count = 40;
+
+    for (let i = 0; i < count; i++) {
       const span = document.createElement('span');
-      span.className = 'sad-face-rain';
-      span.textContent = '😞';
-      // random horizontal position between 0 and 100vw
-      span.style.left = (Math.random() * 100) + 'vw';
-      // random animation duration between 3 and 6 seconds
-      span.style.animationDuration = (3 + Math.random() * 3) + 's';
-      // random delay so they don't all fall at the same time
-      span.style.animationDelay = (Math.random() * 5) + 's';
-      overlay.appendChild(span);
+      span.textContent = sadEmoji;
+      span.style.position = 'absolute';
+      span.style.fontSize = `${12 + Math.random() * 24}px`;
+      span.style.left = `${Math.random() * 100}vw`;
+      span.style.top = `${-10 - Math.random() * 20}vh`;
+      span.style.opacity = '0.8';
+      span.style.userSelect = 'none';
+      span.style.pointerEvents = 'none';
+      span.style.transition = 'transform 5s linear';
+      rainContainer.appendChild(span);
+      emojis.push(span);
     }
 
-    document.getElementById('refreshBtn').addEventListener('click', () => {
-      removeOverlay();
-      runChecks();
+    // Animate downward
+    emojis.forEach((emoji, i) => {
+      setTimeout(() => {
+        emoji.style.transform = `translateY(110vh)`;
+      }, i * 100);
     });
-  }
 
-  function removeOverlay() {
-    if (overlay) {
-      overlay.remove();
-      overlay = null;
-    }
-  }
-
-  function detectAdBlock(callback) {
-    const bait = document.createElement('div');
-    bait.className = 'adsbox';
-    bait.style.cssText = 'width: 1px; height: 1px; position: absolute; left: -10000px; top: -1000px;';
-    document.body.appendChild(bait);
+    // Clean up after duration
     setTimeout(() => {
-      const blocked = window.getComputedStyle(bait).display === 'none' || bait.offsetHeight === 0;
-      bait.remove();
-      callback(blocked);
-    }, 100);
+      emojis.forEach(e => rainContainer.removeChild(e));
+    }, duration);
   }
 
-  function detectNetworkBlock(callback) {
-    const script = document.createElement('script');
-    script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
-    script.onerror = () => callback(true);
-    script.onload = () => callback(false);
-    document.body.appendChild(script);
-  }
+  // Show the overlay with appropriate message
+  async function showBlockMessage(isBraveDetected, isAdBlockDetected) {
+    overlay.style.display = 'flex';
+    startSadFaceRain();
 
-  function detectBrave(callback) {
-    if (navigator.brave && typeof navigator.brave.isBrave === 'function') {
-      navigator.brave.isBrave().then(isBrave => callback(isBrave)).catch(() => callback(false));
+    if (isBraveDetected) {
+      message.innerHTML = `
+        <p>We detected you're using the <strong>Brave Browser</strong>.<br>
+        Please open this site in Chrome and disable any ad blockers for the best experience.</p>
+        <p>Ads help us keep this service running and provide you free content.</p>
+      `;
+    } else if (isAdBlockDetected) {
+      message.innerHTML = `
+        <p>It looks like you are using an <strong>Ad Blocker</strong>.<br>
+        Ads make it possible for us to run this server and provide content for free.<br>
+        Please consider disabling your ad blocker for this site to continue.</p>
+      `;
     } else {
-      callback(false);
+      message.textContent = 'Access blocked. Please disable your ad blocker or switch to a supported browser.';
     }
   }
 
-  function blockDevTools() {
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I', 'C', 'J'].includes(e.key))) {
-        e.preventDefault();
-        createOverlay('Developer Tools are blocked');
-      }
-    });
-    const devtools = /./;
-    devtools.toString = function () {
-      createOverlay('Developer Tools Detected');
-    };
-    console.log('%c', devtools);
+  // Remove overlay (unblock)
+  function removeBlock() {
+    overlay.style.display = 'none';
+    rainContainer.innerHTML = '';
   }
 
-  function runChecks() {
-    removeOverlay();
-    detectBrave(isBrave => {
-      if (isBrave) {
-        createOverlay('Brave Browser Detected');
-        return;
-      }
-      detectAdBlock(isBlocked => {
-        if (isBlocked) {
-          createOverlay('Ad Blocker Detected!');
-          return;
-        }
-        detectNetworkBlock(netBlocked => {
-          if (netBlocked) {
-            createOverlay('Ad Blocker Detected (script blocked)!');
-            return;
-          }
-          removeOverlay(); // No blocker detected, remove overlay
-        });
-      });
-    });
+  // Main check loop
+  async function checkAndAct() {
+    const braveDetected = await isBrave();
+    const adBlockDetected = await detectAdBlocker();
+
+    if (braveDetected || adBlockDetected) {
+      showBlockMessage(braveDetected, adBlockDetected);
+    } else {
+      removeBlock();
+    }
   }
 
-  window.addEventListener('load', () => {
-    runChecks();
-    blockDevTools();
+  // Initial check
+  checkAndAct();
+
+  // Periodically check every 5 seconds in case user disables adblock or changes browser
+  setInterval(checkAndAct, 5000);
+
+  // Block F12 / devtools keyboard shortcuts (very basic, can be bypassed)
+  window.addEventListener('keydown', function(e) {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+      (e.ctrlKey && e.key === 'U')
+    ) {
+      e.preventDefault();
+      alert('Developer tools are disabled. Please disable ad blockers to access content.');
+    }
+  });
+
+  // Disable right-click context menu to reduce inspect element access
+  window.addEventListener('contextmenu', e => {
+    e.preventDefault();
   });
 })();
