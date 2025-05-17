@@ -1,70 +1,79 @@
 (function () {
+  let detectionPassed = false;
+
+  // Create a bait div
   const bait = document.createElement('div');
-  bait.className = 'adsbox';
+  bait.className = 'adsbox pub_300x250';
   bait.style.cssText = `
     width: 1px !important;
     height: 1px !important;
     position: absolute !important;
     left: -10000px !important;
     top: -1000px !important;
-    background: url("https://example.com/ad_banner.jpg") !important;
+    background: url("https://pagead2.googlesyndication.com/pagead/imgad?id=CICAgKDz76ChLxABEAEY2aS8dy-UAb7B") !important;
     visibility: hidden !important;
+    z-index: -9999;
   `;
   document.body.appendChild(bait);
 
-  // Network bait (only for local server)
+  // Network bait
   const xhrBait = new XMLHttpRequest();
-  let xhrBlocked = false;
-  xhrBait.onreadystatechange = function () {
-    if (xhrBait.readyState === 4 && xhrBait.status === 0) {
-      xhrBlocked = true;
+  xhrBait.open("GET", "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js", true);
+
+  xhrBait.onerror = function () {
+    detectionPassed = true;
+  };
+
+  xhrBait.onload = function () {
+    if (xhrBait.status === 403 || xhrBait.status === 0) {
+      detectionPassed = true;
     }
   };
-  xhrBait.open('GET', '/ads.js', true);
+
   xhrBait.send();
 
-  // Firefox specific fingerprint (using internal `moz` props)
-  const isFirefox = typeof InstallTrigger !== 'undefined';
+  // JS inline script bait (blocked by uBlock)
+  const inlineScriptBait = document.createElement("script");
+  inlineScriptBait.innerHTML = "window.__adblock_bait = false;";
+  document.body.appendChild(inlineScriptBait);
 
-  // Run detection after DOM
   setTimeout(() => {
-    const baitBlocked = (
+    const baitBlocked =
       bait.offsetHeight === 0 ||
       bait.offsetParent === null ||
       getComputedStyle(bait).display === 'none' ||
-      getComputedStyle(bait).visibility === 'hidden'
-    );
+      getComputedStyle(bait).visibility === 'hidden';
 
-    const blocked = baitBlocked || xhrBlocked;
+    const jsBait = typeof window.__adblock_bait === "undefined";
 
-    if (blocked) {
-      showBlockMessage();
-    }
+    const finalDecision = detectionPassed || baitBlocked || jsBait;
 
-    document.body.removeChild(bait);
+    if (finalDecision) showBlockMessage();
+
+    // Cleanup
+    bait.remove();
+    inlineScriptBait.remove();
   }, 1500);
 
-  // Full-page popup message
+  // Block message function
   function showBlockMessage() {
     const overlay = document.createElement('div');
-    overlay.id = 'adblock-warning';
     overlay.style.cssText = `
       position: fixed;
       top: 0; left: 0;
       width: 100vw; height: 100vh;
       background: #fff;
-      color: #111;
+      color: #000;
       z-index: 9999999;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-family: Arial, sans-serif;
       text-align: center;
-      padding: 30px;
+      font-family: Arial, sans-serif;
     `;
 
-    // Sad face rain
+    // Sad face rain animation
     const emojiContainer = document.createElement('div');
     emojiContainer.style.position = 'absolute';
     emojiContainer.style.top = '0';
@@ -72,10 +81,9 @@
     emojiContainer.style.width = '100%';
     emojiContainer.style.height = '100%';
     emojiContainer.style.pointerEvents = 'none';
-    emojiContainer.style.overflow = 'hidden';
     overlay.appendChild(emojiContainer);
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 30; i++) {
       const emoji = document.createElement('div');
       emoji.textContent = '😢';
       emoji.style.cssText = `
@@ -83,12 +91,12 @@
         left: ${Math.random() * 100}vw;
         top: -5vh;
         font-size: ${Math.random() * 30 + 20}px;
-        animation: fall ${Math.random() * 3 + 2}s linear infinite;
+        animation: fall ${Math.random() * 3 + 2}s linear forwards;
       `;
       emojiContainer.appendChild(emoji);
     }
 
-    // Keyframe for animation
+    // Add fall animation CSS
     const style = document.createElement('style');
     style.textContent = `
       @keyframes fall {
@@ -100,22 +108,23 @@
     `;
     document.head.appendChild(style);
 
+    // Message
     const title = document.createElement('h2');
-    title.textContent = "😢 Oops! We detected an ad blocker";
+    title.textContent = "😢 Ad Blocker Detected";
 
     const msg = document.createElement('p');
     msg.innerHTML = `
-      This site runs on ad revenue to stay online and deliver free content.<br>
-      Please disable your ad blocker or use a different browser (like Chrome without blockers).<br><br>
-      Thank you for supporting us ❤️
+      Ads help us keep this service running and provide free content.<br>
+      Please disable your ad blocker or open in Chrome without blockers.<br><br>
+      We appreciate your support ❤️
     `;
 
     const refresh = document.createElement('button');
-    refresh.textContent = "I've disabled it, refresh";
+    refresh.textContent = "I’ve disabled Adblock, Refresh";
     refresh.style.cssText = `
       margin-top: 20px;
       padding: 10px 20px;
-      background: #111;
+      background: #000;
       color: white;
       font-size: 16px;
       border: none;
