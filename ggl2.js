@@ -3,58 +3,66 @@
 
   function createOverlay(msg) {
     if (overlay) return;
+
     const style = document.createElement('style');
     style.textContent = `
-      @keyframes sadBounce {
-        0%, 100% { transform: translateY(0); opacity: 0.2; }
-        50% { transform: translateY(-20px); opacity: 0.6; }
+      @keyframes rainSadFaces {
+        0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+        50% { opacity: 1; }
+        100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
       }
       #blocker-overlay {
         position: fixed;
         top: 0; left: 0;
         width: 100vw; height: 100vh;
-        background: rgba(0, 0, 0, 0.85);
-        color: #fff;
-        z-index: 9999999;
+        background: #fff;
+        color: #222;
+        z-index: 99999999;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        font-family: sans-serif;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         text-align: center;
         padding: 2rem;
         overflow: hidden;
-      }
-      #blocker-overlay .sad-face {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        font-size: 30vw;
-        line-height: 1;
-        transform: translate(-50%, -50%);
         user-select: none;
-        pointer-events: none;
-        animation: sadBounce 3s ease-in-out infinite;
-        opacity: 0.3;
       }
       #blocker-overlay > div {
         position: relative;
-        z-index: 2;
+        z-index: 10;
         max-width: 90vw;
       }
+      #blocker-overlay h2 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+      #blocker-overlay p {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+      }
       #blocker-overlay button {
-        margin-top: 1.5rem;
-        padding: 0.5rem 1rem;
-        font-size: 1rem;
+        padding: 0.6rem 1.2rem;
+        font-size: 1.1rem;
         cursor: pointer;
-        background: #f33;
+        background: #222;
         color: #fff;
         border: none;
-        border-radius: 5px;
+        border-radius: 6px;
         transition: background-color 0.3s ease;
       }
       #blocker-overlay button:hover {
-        background: #c22;
+        background: #555;
+      }
+      .sad-face-rain {
+        pointer-events: none;
+        position: fixed;
+        top: -5vh;
+        font-size: 2.5rem;
+        user-select: none;
+        animation-name: rainSadFaces;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
       }
     `;
     document.head.appendChild(style);
@@ -63,7 +71,6 @@
     overlay.id = 'blocker-overlay';
 
     overlay.innerHTML = `
-      <span class="sad-face" aria-hidden="true">😞</span>
       <div>
         <h2>${msg}</h2>
         <p>Please disable your ad blocker or switch to Chrome.</p>
@@ -72,6 +79,21 @@
     `;
 
     document.body.appendChild(overlay);
+
+    // Create raining sad faces for ~5 seconds
+    const rainCount = 30;
+    for (let i = 0; i < rainCount; i++) {
+      const span = document.createElement('span');
+      span.className = 'sad-face-rain';
+      span.textContent = '😞';
+      // random horizontal position between 0 and 100vw
+      span.style.left = (Math.random() * 100) + 'vw';
+      // random animation duration between 3 and 6 seconds
+      span.style.animationDuration = (3 + Math.random() * 3) + 's';
+      // random delay so they don't all fall at the same time
+      span.style.animationDelay = (Math.random() * 5) + 's';
+      overlay.appendChild(span);
+    }
 
     document.getElementById('refreshBtn').addEventListener('click', () => {
       removeOverlay();
@@ -145,8 +167,7 @@
             createOverlay('Ad Blocker Detected (script blocked)!');
             return;
           }
-          // All clear
-          removeOverlay();
+          removeOverlay(); // No blocker detected, remove overlay
         });
       });
     });
